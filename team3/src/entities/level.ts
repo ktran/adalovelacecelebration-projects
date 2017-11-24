@@ -7,11 +7,14 @@ export class Level {
 
   groundPhysicsGroup : Phaser.Group;
   platforms : Platform[] = [];
-  time : number = 0;
   snowEffect : SnowEffect;
 
-  lastPlatform : Platform;
+  timeBetweenPlatformSpawns : number = 2200;
+  time : number = this.timeBetweenPlatformSpawns;
+
   tileSize : number = 45;
+  canReachPreviousPlatform : boolean = false;
+  heightOfPreviousPlatform : number;
 
   constructor (
     public game : Phaser.Game,
@@ -20,7 +23,8 @@ export class Level {
     // Load sprite
     this.groundPhysicsGroup = this.game.add.physicsGroup();
     this.snowEffect = new SnowEffect(this.game)
-    this.createPlatform(this.game.width / 2, this.game.height - 90, this.tileSize * 10);
+    this.createPlatform(this.game.width / 3, this.game.height - 90, this.tileSize * 10);
+    this.heightOfPreviousPlatform = this.game.height - this.tileSize;
   }
 
   createPlatform(x : number, y : number, w?: number) {
@@ -40,18 +44,36 @@ export class Level {
     return platform;
   }
 
+  // NOTE: The calculations in this method look weird because
+  // Y coordinates start at 0 at the top and increase towards the bottom!
   spawnPlatforms() {
+    const doubleJumpHeight = 340;
+    const lowest = this.game.height - this.tileSize;
+    const heighest = this.tileSize * 2;
+    const heighestPossible = Math.max(heighest, lowest - doubleJumpHeight);
+
     this.time += this.game.time.elapsed;
 
+    if( this.time > this.timeBetweenPlatformSpawns ) {
 
-    if( this.time > 2200 || this.lastPlatform == null ) {
-       const randomY = Math.max(this.tileSize * 2, Math.random() * (this.game.height - this.tileSize));
+      let randomY = 0;
+      if (!this.canReachPreviousPlatform) {
+        randomY = lowest - Math.random() * (lowest - heighestPossible);
+        this.heightOfPreviousPlatform = randomY;
+          this.canReachPreviousPlatform = true;
+      } else {
+        randomY = lowest - Math.random() * (lowest - heighest);
+        if (randomY > heighestPossible) {
+          this.heightOfPreviousPlatform = randomY;
+          this.canReachPreviousPlatform = true;
+        } else {
+          this.canReachPreviousPlatform = false;
+        }
+      }
 
-      this.lastPlatform = this.createPlatform(this.game.width, randomY);
+      this.createPlatform(this.game.width, randomY);
       this.time = 0;
     }
-
-
   }
 
   update () {
